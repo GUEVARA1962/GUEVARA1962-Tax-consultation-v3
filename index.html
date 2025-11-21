@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>税務相談AIチャットボット</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        /* --- プロトタイプのデザイン定義 (維持) --- */
+        :root {
+            --text-dark-1: #333333;
+            --text-light-1: #FFFFFF;
+            --text-dark-2: #79B9E1;
+            --accent-1: #1B2A4C; /* 濃い紺色 */
+            --accent-2: #79B9E1; /* 水色 */
+            --accent-3: #C0C0C0;
+            --accent-4: #A9A9A9;
+            --accent-5: #808080;
+            --accent-6: #568FBB; /* ボタン等の青 */
+            --link: #568FBB;
+        }
+
+        body { 
+            font-family: 'Noto Sans JP', 'Inter', sans-serif;
+            color: var(--text-dark-1);
+            background-color: #f5f6f7;
+        }
+        
+        .custom-scrollbar::-webkit-scrollbar { width: 8px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #f0f0f0; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: var(--accent-3); border-radius: 4px; }
+        
+        /* マークダウン等のスタイル */
+        .bot-message h2 { font-size: 1.1rem; font-weight: 700; margin: 1.5rem 0 0.5rem; color: var(--accent-1); border-bottom: 1px solid var(--accent-2); padding-bottom: 0.25rem; }
+        .bot-message h3 { font-size: 1rem; font-weight: 600; margin: 1rem 0 0.5rem; color: var(--accent-6); }
+        .bot-message ul { list-style-type: disc; padding-left: 1.5rem; margin: 0.5rem 0; }
+        .bot-message p { margin-bottom: 0.5rem; line-height: 1.7; }
+        .bot-message strong { color: var(--accent-1); background: rgba(121, 185, 225, 0.1); padding: 0 2px; }
+        
+        /* ヘッダーグラデーション */
+        .header-gradient {
+            background: linear-gradient(135deg, var(--accent-1) 0%, #2C4375 100%);
+        }
+
+        /* 税目バッジ */
+        .tax-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            margin-right: 0.5rem;
+            margin-bottom: 0.5rem;
+            background-color: var(--accent-6);
+            color: var(--text-light-1);
+        }
+
+        /* 参照元カードスタイル (新規追加) */
+        .ref-container { margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid #e5e7eb; }
+        .ref-title { font-size: 0.75rem; font-weight: 700; color: var(--accent-5); margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.25rem; }
+        .ref-card { 
+            display: block; padding: 0.5rem; margin-bottom: 0.5rem; 
+            background: #fff; border: 1px solid #e5e7eb; border-radius: 0.5rem; 
+            border-left: 3px solid var(--accent-2); text-decoration: none; transition: all 0.2s;
+        }
+        .ref-card:hover { transform: translateX(2px); box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        .ref-source { font-size: 0.7rem; color: var(--accent-6); font-weight: bold; }
+        .ref-text { font-size: 0.8rem; color: var(--text-dark-1); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+        /* タイピングアニメーション */
+        .typing span { display: inline-block; width: 6px; height: 6px; background-color: var(--accent-6); border-radius: 50%; animation: typing 1.4s infinite; margin: 0 2px; }
+        .typing span:nth-child(2) { animation-delay: 0.2s; }
+        .typing span:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes typing { 0%, 100% { opacity: 0.2; transform: scale(0.8); } 50% { opacity: 1; transform: scale(1); } }
+    </style>
+</head>
+<body class="h-screen flex flex-col items-center justify-center p-0 md:p-4">
+
+    <div class="w-full max-w-4xl bg-white md:rounded-2xl shadow-2xl overflow-hidden flex flex-col h-full md:h-[90vh]">
+        <div class="header-gradient p-6 text-white shrink-0">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h1 class="text-2xl font-bold flex items-center gap-3">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-[#79B9E1]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                        </svg>
+                        税務相談AIチャットボット
+                    </h1>
+                    <p class="text-sm mt-1 text-[#79B9E1]">法人税・所得税・消費税・相続税・固定資産税・住民税に対応</p>
+                </div>
+                <button onclick="location.reload()" class="text-white hover:bg-white/20 transition-colors p-2 rounded-lg" title="チャットをリセット">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                </button>
+            </div>
+        </div>
+
+        <div id="messages" class="flex-1 overflow-y-auto custom-scrollbar p-6 bg-white">
+            <div class="flex items-start mb-6">
+                <div class="flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center text-white font-bold shadow-md mr-3" style="background-color: var(--accent-1);">
+                    AI
+                </div>
+                <div class="flex-1 rounded-2xl rounded-tl-none p-5 max-w-3xl" style="background-color: #f8f9fa;">
+                    <p class="mb-3 font-medium text-gray-800">
+                        こんにちは！税務相談AIチャットボットです。以下の税目についてご質問をお受けします：
+                    </p>
+                    <div class="flex flex-wrap gap-1 mb-4">
+                        <span class="tax-badge">法人税</span>
+                        <span class="tax-badge">所得税</span>
+                        <span class="tax-badge">消費税</span>
+                        <span class="tax-badge">相続税</span>
+                        <span class="tax-badge">固定資産税</span>
+                        <span class="tax-badge">住民税</span>
+                    </div>
+                    <p class="text-sm text-gray-500">
+                        どのような税務のご質問でもお気軽にどうぞ。質問内容から税目を自動的に判定してお答えします。
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <div class="p-4 bg-[#f8f9fa] border-t border-gray-200 shrink-0">
+            <form id="chat-form" class="flex items-center gap-3 max-w-4xl mx-auto">
+                <input
+                    type="text"
+                    id="user-input"
+                    class="flex-1 px-4 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#79B9E1] border border-gray-300 transition-all shadow-sm"
+                    placeholder="税務に関する質問を入力してください..."
+                    autocomplete="off"
+                    required
+                />
+                <button
+                    type="submit"
+                    id="send-btn"
+                    class="px-6 py-3 font-medium rounded-xl focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center gap-2 text-white shadow-md hover:bg-[#568FBB]"
+                    style="background-color: var(--accent-1);"
+                >
+                    <span>送信</span>
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                        <path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z" />
+                    </svg>
+                </button>
+            </form>
+            <p class="text-xs mt-2 text-center text-gray-400">
+                ※ 本回答はRAG技術により国税庁データベース等を参照していますが、AIによる回答のため誤りを含む可能性があります。
+            </p>
+        </div>
+    </div>
+
+    <script>
+        // ▼▼▼ n8nのWebhook URLをここに設定してください ▼▼▼
+        const WEBHOOK_URL = 'https://my-n8n.xvps.jp/webhook-test/tax-chatbot-v2';
+        // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+        
+        const sessionId = 'sess_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+        const messagesDiv = document.getElementById('messages');
+        const userInput = document.getElementById('user-input');
+        const sendBtn = document.getElementById('send-btn');
+        const chatForm = document.getElementById('chat-form');
+
+        // HTMLエスケープ
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // メッセージ追加関数 (RAGレスポンス対応)
+        function addMessage(role, content, metadata = {}) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'flex items-start mb-6 animate-fade-in';
+
+            if (role === 'user') {
+                // ユーザーメッセージ
+                messageDiv.innerHTML = `
+                    <div class="flex-1 flex justify-end">
+                        <div class="rounded-2xl rounded-br-none p-4 max-w-2xl bg-[#568FBB] text-white shadow-md">
+                            ${escapeHtml(content)}
+                        </div>
+                    </div>
+                    <div class="flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center font-bold ml-3 bg-gray-300 text-[#1B2A4C]">
+                        You
+                    </div>
+                `;
+            } else {
+                // AIメッセージ (RAGデータ処理)
+                let referencesHTML = '';
+                
+                // 1. 参照元 (国税庁URLなど) の表示生成
+                if (metadata.references && metadata.references.length > 0) {
+                    referencesHTML += `<div class="ref-container"><div class="ref-title">🔍 根拠・参考リンク</div>`;
+                    metadata.references.forEach(ref => {
+                        referencesHTML += `
+                            <a href="${ref.url}" target="_blank" class="ref-card">
+                                <div class="ref-source">${ref.source || '国税庁Web'}</div>
+                                <div class="ref-text">${ref.title}</div>
+                            </a>`;
+                    });
+                    referencesHTML += `</div>`;
+                }
+
+                // 2. 判例の表示生成
+                if (metadata.precedents && metadata.precedents.length > 0) {
+                    referencesHTML += `<div class="ref-container"><div class="ref-title">⚖️ 関連する裁判例</div>`;
+                    metadata.precedents.forEach(pre => {
+                        referencesHTML += `
+                            <div class="ref-card" style="border-left-color: #A9A9A9;">
+                                <div class="ref-source">${pre.caseName}</div>
+                                <div class="ref-text text-xs whitespace-normal">${pre.summary}</div>
+                            </div>`;
+                    });
+                    referencesHTML += `</div>`;
+                }
+
+                // 税目バッジ
+                const taxBadge = metadata.taxType ? `<span class="inline-block px-2 py-0.5 bg-blue-100 text-[#1B2A4C] text-xs font-bold rounded-full mb-2">${metadata.taxType}</span>` : '';
+
+                messageDiv.innerHTML = `
+                    <div class="flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center text-white font-bold shadow-md mr-3" style="background-color: var(--accent-1);">
+                        AI
+                    </div>
+                    <div class="flex-1 rounded-2xl rounded-tl-none p-5 max-w-3xl bg-[#f8f9fa] bot-message shadow-sm border border-gray-100">
+                        ${taxBadge}
+                        <div class="prose prose-sm max-w-none text-gray-800">
+                            ${marked.parse(content)}
+                        </div>
+                        ${referencesHTML}
+                    </div>
+                `;
+            }
+
+            messagesDiv.appendChild(messageDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+
+        // ローディング表示
+        function showLoading() {
+            const loadingDiv = document.createElement('div');
+            loadingDiv.id = 'loading';
+            loadingDiv.className = 'flex items-start mb-6';
+            loadingDiv.innerHTML = `
+                <div class="flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center text-white font-bold shadow-md mr-3" style="background-color: var(--accent-1);">
+                    AI
+                </div>
+                <div class="rounded-2xl rounded-tl-none p-4 bg-[#f8f9fa] typing shadow-sm border border-gray-100">
+                    <span></span><span></span><span></span>
+                </div>
+            `;
+            messagesDiv.appendChild(loadingDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+
+        function hideLoading() {
+            const loadingDiv = document.getElementById('loading');
+            if (loadingDiv) loadingDiv.remove();
+        }
+
+        // 送信処理
+        chatForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const question = userInput.value.trim();
+            if (!question) return;
+
+            addMessage('user', question);
+            userInput.value = '';
+            sendBtn.disabled = true;
+            userInput.disabled = true;
+            
+            showLoading();
+
+            try {
+                const response = await fetch(WEBHOOK_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        question: question,
+                        sessionId: sessionId
+                    })
+                });
+
+                if (!response.ok) throw new Error('Network response was not ok');
+
+                const result = await response.json();
+                hideLoading();
+
+                // n8nからのJSONレスポンスを解析
+                // 期待される形式: { taxType: "", answer: "", references: [], precedents: [] }
+                addMessage('assistant', result.answer || "回答を取得できませんでした。", {
+                    taxType: result.taxType,
+                    references: result.references,
+                    precedents: result.precedents
+                });
+
+            } catch (error) {
+                console.error('Error:', error);
+                hideLoading();
+                addMessage('assistant', '申し訳ございません。システムエラーが発生しました。時間をおいて再度お試しください。');
+            } finally {
+                sendBtn.disabled = false;
+                userInput.disabled = false;
+                userInput.focus();
+            }
+        });
+    </script>
+</body>
+</html>
